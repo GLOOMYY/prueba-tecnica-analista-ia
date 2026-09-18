@@ -69,6 +69,15 @@ def main(etapa: str) -> int:
         elif etapa == "03":
             from .extraccion import ejecutar
 
+            if not args.sin_api:
+                if args.sin_db:
+                    raise ValueError(
+                        "--sin-db requiere --sin-api: la cuota es compartida "
+                        "en PostgreSQL."
+                    )
+                # La reserva global debe existir antes de la primera llamada,
+                # incluso cuando se ejecuta el flujo en una base nueva.
+                crear_esquema(Configuracion.leer())
             resultado = ejecutar(root, permitir_api=not args.sin_api)
         elif etapa == "04":
             from .priorizacion import ejecutar

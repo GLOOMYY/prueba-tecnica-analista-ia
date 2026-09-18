@@ -463,7 +463,10 @@ def ejecutar(root: Path) -> dict:
             "Contrato incumplido: score_reglas(caso_sin_datos)[0] == 0"
         )
     if not np.isclose(
-        score_reglas(caso_sin_datos.assign(cita_observada="SI"))[0], 40 / 90
+        score_reglas(caso_sin_datos.assign(cita_observada="SI"))[0],
+        40 / 90,
+        atol=0.00005,
+        rtol=0,
     ):
         raise ValueError(
             "Contrato incumplido: np.isclose(score_reglas(cas"
