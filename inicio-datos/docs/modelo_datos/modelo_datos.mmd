@@ -1,0 +1,216 @@
+erDiagram
+    empresas ||--o{ puntos_venta : tiene
+    empresas ||--o{ leads : conserva
+    empresas ||--o{ historico_cierres : registra
+
+    puntos_venta ||--o{ asesores : tiene
+    puntos_venta o|--o{ consultas : recibe
+    puntos_venta o|--o{ historico_cierres : registra
+
+    marcas ||--o{ modelos_moto : fabrica
+    modelos_moto ||--o{ disponibilidad_modelo : ofrece
+    puntos_venta ||--o{ disponibilidad_modelo : dispone
+
+    leads ||--|{ consultas : agrupa
+    modelos_moto o|--o{ consultas : identifica
+
+    consultas ||--o{ conversaciones : vincula
+    conversaciones ||--o{ mensajes : contiene
+    conversaciones ||--o{ extracciones_ia : genera
+
+    extracciones_ia ||--o{ intereses_modelo : identifica
+    modelos_moto o|--o{ intereses_modelo : corresponde
+
+    leads ||--o{ priorizaciones : recibe
+    consultas o|--o{ priorizaciones : aporta_contexto
+    conversaciones o|--o{ priorizaciones : aporta_contexto
+    modelos_ml o|--o{ priorizaciones : participa
+    modelos_moto o|--o{ historico_cierres : identifica
+
+    ejecuciones ||--o{ extracciones_ia : produce
+    ejecuciones ||--o{ priorizaciones : produce
+    ejecuciones ||--o{ modelos_ml : entrena
+    ejecuciones ||--o{ incidencias : registra
+    ejecuciones ||--o{ trazabilidad_registros : documenta
+
+    archivos_fuente ||--o{ trazabilidad_registros : origina
+    ejecuciones ||--o{ ejecucion_archivos : utiliza
+    archivos_fuente ||--o{ ejecucion_archivos : participa
+
+    empresas {
+        string empresa_id PK
+        string nombre
+    }
+    puntos_venta {
+        string punto_venta_id PK
+        string empresa_id FK
+        string nombre
+        string ubicacion
+    }
+    asesores {
+        string asesor_id PK
+        string empresa_id FK
+        string punto_venta_id FK
+        string nombre
+        int capacidad_diaria_leads
+        boolean activo
+    }
+    marcas {
+        string marca_id PK
+        string nombre
+    }
+    modelos_moto {
+        string sku PK
+        string marca_id FK
+        string linea
+        int cilindraje
+        string segmento
+        decimal precio_lista
+        int unidades_disponibles
+    }
+    disponibilidad_modelo {
+        string sku PK, FK
+        string punto_venta_id PK, FK
+    }
+    leads {
+        string lead_consolidado_id PK
+        string empresa_id FK
+        string nombre_presentacion
+        date primera_fecha_registro
+        time primera_fecha_registro_hora
+        string primera_fecha_registro_precision
+        date ultima_fecha_registro
+        time ultima_fecha_registro_hora
+        string ultima_fecha_registro_precision
+        json reglas_identidad
+    }
+    consultas {
+        string lead_id_origen PK
+        string lead_consolidado_id FK
+        string empresa_id FK
+        string punto_venta_id FK
+        string modelo_sku FK
+        string canal
+        string estado_gestion
+        string modelo_declarado
+        json datos_originales
+    }
+    conversaciones {
+        string conversacion_id PK
+        string lead_id_origen FK
+        string lead_consolidado_id FK
+        string empresa_id FK
+        date fecha_inicio
+        time fecha_inicio_hora
+        string fecha_inicio_precision
+        boolean descartada
+        json motivos_descarte
+        datetime fecha_descarte
+    }
+    mensajes {
+        string mensaje_id PK
+        string conversacion_id FK
+        int posicion
+        string emisor
+        string hora_original
+        string texto
+    }
+    extracciones_ia {
+        string extraccion_id PK
+        string conversacion_id FK
+        string ejecucion_id FK
+        string modelo_ia
+        string version_prompt
+        string version_normalizador
+        string estado_validacion
+        json resultado
+    }
+    intereses_modelo {
+        string interes_id PK
+        string extraccion_id FK
+        string modelo_sku FK
+        string texto_mencionado
+        string estado_identificacion
+        json evidencias
+    }
+    priorizaciones {
+        string priorizacion_id PK
+        string lead_consolidado_id FK
+        string empresa_id FK
+        string ejecucion_id FK
+        string lead_id_contexto FK
+        string conversacion_id_contexto FK
+        string modelo_ml_id FK
+        decimal score_prioridad
+        decimal score_modelo_experimental
+        string temperatura
+        string cola
+        string explicacion
+        string accion_sugerida
+        string version_reglas
+    }
+    modelos_ml {
+        string modelo_ml_id PK
+        string ejecucion_id FK
+        string algoritmo
+        string version
+        string ruta_artefacto
+        string hash_artefacto
+        string estado
+        json configuracion
+        json metricas
+    }
+    historico_cierres {
+        string historico_id PK
+        string empresa_id FK
+        string punto_venta_id FK
+        string modelo_sku FK
+        date fecha_registro
+        string canal
+        string desenlace
+        json datos_originales
+    }
+    ejecuciones {
+        string ejecucion_id PK
+        string etapa
+        string version_codigo
+        datetime inicio
+        datetime fin
+        string estado
+        json configuracion
+        json conteos
+    }
+    archivos_fuente {
+        string archivo_id PK
+        string nombre
+        string ruta
+        string hash_contenido
+    }
+    ejecucion_archivos {
+        string ejecucion_id PK, FK
+        string archivo_id PK, FK
+        string funcion
+    }
+    trazabilidad_registros {
+        string trazabilidad_id PK
+        string archivo_id FK
+        string ejecucion_id FK
+        string referencia_origen
+        string entidad_destino
+        string identificador_destino
+        string accion
+        string motivo
+    }
+    incidencias {
+        string incidencia_id PK
+        string ejecucion_id FK
+        string empresa_id FK
+        string entidad_afectada
+        string identificador_afectado
+        string campo
+        string tipo
+        string decision
+        string estado
+        json antes
+        json despues
+    }
