@@ -27,10 +27,26 @@ def transaccion_empresa(empresa_id: str) -> Iterator[None]:
     if not empresa_id or not empresa_id.strip():
         raise ValueError("Se requiere una empresa autorizada.")
     with transaction.atomic():
+        anterior = None
         if connection.vendor == "postgresql":
             with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT current_setting('app.empresa_id', true)"
+                )
+                anterior = cursor.fetchone()[0]
                 cursor.execute(
                     "SELECT set_config('app.empresa_id', %s, true)",
                     [empresa_id],
                 )
-        yield
+        try:
+            yield
+        finally:
+            if (
+                connection.vendor == "postgresql"
+                and not connection.needs_rollback
+            ):
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT set_config('app.empresa_id', %s, true)",
+                        [anterior or ""],
+                    )

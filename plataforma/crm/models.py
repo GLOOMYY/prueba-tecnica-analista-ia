@@ -89,6 +89,8 @@ class EstadoOperativoLead(ModeloConTimestamps):
     proxima_accion_en = models.DateTimeField(blank=True, null=True)
     revision_entrada = models.PositiveIntegerField(default=1)
     priorizacion_vigente_id = models.CharField(max_length=100, blank=True)
+    priorizacion_revision_entrada = models.PositiveIntegerField(default=0)
+    priorizacion_origen = models.CharField(max_length=40, blank=True)
     requiere_revision = models.BooleanField(default=False)
 
     class Meta:
@@ -212,8 +214,10 @@ class TrabajoProcesamiento(ModeloConTimestamps):
     intentos = models.PositiveIntegerField(default=0)
     disponible_en = models.DateTimeField()
     lease_hasta = models.DateTimeField(blank=True, null=True)
+    lease_token = models.UUIDField(blank=True, null=True)
     ultimo_error = models.CharField(max_length=500, blank=True)
     configuracion = models.JSONField(default=dict)
+    huella_entrada = models.CharField(max_length=64, blank=True)
 
     class Meta:
         """Evita ejecutar dos veces un mismo trabajo lógico."""

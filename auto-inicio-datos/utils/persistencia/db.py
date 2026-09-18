@@ -408,4 +408,32 @@ def cargar_lote(config: Configuracion, lote: Lote) -> dict:
             "WHERE ejecucion_id = %s",
             (datetime.now(UTC), lote.ejecucion_id),
         )
+        publicar_prioridades_lote(conn, lote.etapas["clasificacion"])
     return {**lote.resumen(), "estado": "cargado_y_verificado"}
+
+
+def publicar_prioridades_lote(conn, ejecucion_id: str) -> None:
+    """Publica el lote sin reemplazar decisiones posteriores de la plataforma.
+
+    Si ya existe una captura web, conserva su prioridad y marca el conflicto
+    para revisión. No se usa la hora de carga como fecha de la declaración.
+    """
+    conn.execute(
+        """
+        INSERT INTO prioridades_publicadas AS vigente
+            (empresa_id,lead_consolidado_id,priorizacion_id,
+             revision_entrada,origen,conflicto_lote)
+        SELECT p.empresa_id,p.lead_consolidado_id,p.priorizacion_id,
+            1,'lote',false
+        FROM priorizaciones p JOIN ejecuciones e USING (ejecucion_id)
+        WHERE p.ejecucion_id = %s AND e.estado = 'completada'
+        ON CONFLICT (empresa_id,lead_consolidado_id) DO UPDATE SET
+            priorizacion_id = CASE WHEN vigente.origen = 'lote'
+                THEN EXCLUDED.priorizacion_id ELSE vigente.priorizacion_id END,
+            revision_entrada = vigente.revision_entrada +
+                CASE WHEN vigente.origen = 'lote' THEN 1 ELSE 0 END,
+            conflicto_lote = vigente.origen <> 'lote'
+        WHERE vigente.priorizacion_id <> EXCLUDED.priorizacion_id
+        """,
+        (ejecucion_id,),
+    )
