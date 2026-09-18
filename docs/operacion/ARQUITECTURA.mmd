@@ -1,0 +1,12 @@
+flowchart LR
+    FU[Fuentes originales] --> LOTE[run.py: ingesta, normalización, IA y reglas]
+    LOTE --> SQL[(Supabase PostgreSQL)]
+    UI[Django HTML] --> SERV[Servicios de alta, gestión y asignación]
+    API[DRF autenticada] --> SERV
+    SERV --> DOM[Dominio compartido]
+    SERV --> SQL
+    AUTH[Usuario y membresía] --> SERV
+    SQL --> COLA[Trabajos durables]
+    COLA -. integración pendiente .-> IA[Procesador Gemini individual]
+    IA -. publicación por revisión pendiente .-> SQL
+    RENDER[Render: publicación diferida] -.-> UI
