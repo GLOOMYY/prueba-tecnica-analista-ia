@@ -1,0 +1,10 @@
+# Python 3.11. Ejecución automática: sin Jupyter ni IPython.
+pandas==3.0.5
+numpy==2.4.6
+scipy==1.17.1
+scikit-learn==1.9.1
+joblib==1.6.0
+google-genai==2.24.0
+pydantic==2.13.5
+python-dotenv==1.2.3
+psycopg[binary]==3.3.5
