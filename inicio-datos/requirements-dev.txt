@@ -1,0 +1,3 @@
+-r requirements-db.txt
+ruff==0.16.8
+pglast==8.4
