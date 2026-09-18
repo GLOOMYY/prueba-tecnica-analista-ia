@@ -10,7 +10,7 @@ from pathlib import Path
 import psycopg
 
 from .archivos import guardar_json
-from .persistencia.config import Configuracion
+from .persistencia.config import Configuracion, ErrorValidacion
 from .persistencia.db import cargar_lote, crear_esquema
 from .persistencia.plan import preparar_lote
 
@@ -38,6 +38,17 @@ def persistir(root: Path, sin_db: bool) -> dict:
                 guardar_json(destino / "esquema.json", esquema)
                 resultado = cargar_lote(config, lote)
                 break
+            except ErrorValidacion as error:
+                guardar_json(
+                    destino / "revision_carga.json",
+                    {
+                        "estado": "requiere_revision",
+                        "ejecucion_id": lote.ejecucion_id,
+                        "motivo": str(error),
+                        "publicada": False,
+                    },
+                )
+                raise
             except psycopg.OperationalError:
                 if intento == 2:
                     raise

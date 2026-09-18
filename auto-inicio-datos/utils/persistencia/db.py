@@ -15,6 +15,7 @@ from .config import (
     ErrorValidacion,
     huella,
 )
+from .identidades import conciliar_identidades, validar_fuentes_inmutables
 from .plan import CLAVES, ORDEN, Lote, exigir
 
 
@@ -351,7 +352,8 @@ def cargar_lote(config: Configuracion, lote: Lote) -> dict:
     with conectar(config) as conn, conn.transaction():
         preparar_transaccion(conn, config)
         verificar_migraciones(conn)
-        verificar_base_operativa(conn, lote)
+        conciliar_identidades(conn, lote)
+        validar_fuentes_inmutables(conn, lote, CLAVES)
         anterior = conn.execute(
             "SELECT estado FROM ejecuciones WHERE ejecucion_id = %s",
             (lote.ejecucion_id,),
@@ -362,6 +364,7 @@ def cargar_lote(config: Configuracion, lote: Lote) -> dict:
                     conn, config.schema, tabla, lote.filas[tabla]
                 )
             return {**lote.resumen(), "estado": "ya_cargado_y_verificado"}
+        verificar_base_operativa(conn, lote)
         inicio = datetime.now(UTC)
         ejecucion_carga = {
             "ejecucion_id": lote.ejecucion_id,
@@ -428,11 +431,8 @@ def publicar_prioridades_lote(conn, ejecucion_id: str) -> None:
         FROM priorizaciones p JOIN ejecuciones e USING (ejecucion_id)
         WHERE p.ejecucion_id = %s AND e.estado = 'completada'
         ON CONFLICT (empresa_id,lead_consolidado_id) DO UPDATE SET
-            priorizacion_id = CASE WHEN vigente.origen = 'lote'
-                THEN EXCLUDED.priorizacion_id ELSE vigente.priorizacion_id END,
-            revision_entrada = vigente.revision_entrada +
-                CASE WHEN vigente.origen = 'lote' THEN 1 ELSE 0 END,
-            conflicto_lote = vigente.origen <> 'lote'
+            propuesta_lote_id = EXCLUDED.priorizacion_id,
+            conflicto_lote = true
         WHERE vigente.priorizacion_id <> EXCLUDED.priorizacion_id
         """,
         (ejecucion_id,),
