@@ -4,6 +4,7 @@ from cuentas.acceso import alcance_empresa
 from cuentas.models import MembresiaEmpresa
 from django.core.exceptions import PermissionDenied
 from django.db import connection
+from django.db.models import Max
 from django.utils import timezone
 
 from crm.historico import _consultar
@@ -26,14 +27,12 @@ def generar_asignaciones(*, usuario, empresa_id: str) -> dict:
                 [],
             )
         miembros = list(
-            MembresiaEmpresa.objects.select_for_update()
-            .filter(
+            MembresiaEmpresa.objects.filter(
                 empresa_id=empresa_id,
                 activa=True,
                 usuario__is_active=True,
                 rol="asesor",
-            )
-            .order_by("pk")
+            ).order_by("pk")
         )
         asesores = {
             fila["asesor_id"]: fila
@@ -45,8 +44,10 @@ def generar_asignaciones(*, usuario, empresa_id: str) -> dict:
         }
         hoy, ahora = timezone.localdate(), timezone.now()
         cargas = {
-            m.pk: AsignacionDiaria.objects.filter(
-                empresa_id=empresa_id, asesor=m, fecha_operativa=hoy
+            m.asesor_id: AsignacionDiaria.objects.filter(
+                empresa_id=empresa_id,
+                asesor__asesor_id=m.asesor_id,
+                fecha_operativa=hoy,
             ).count()
             for m in miembros
         }
@@ -91,14 +92,16 @@ def generar_asignaciones(*, usuario, empresa_id: str) -> dict:
                 ):
                     continue
                 capacidad = asesor["capacidad_diaria_leads"] or 0
-                if cargas[miembro.pk] >= capacidad:
+                if cargas[miembro.asesor_id] >= capacidad:
                     continue
                 if estado and estado.asesor_responsable_id not in (
                     None,
                     miembro.pk,
                 ):
                     continue
-                elegibles.append((capacidad - cargas[miembro.pk], miembro))
+                elegibles.append(
+                    (capacidad - cargas[miembro.asesor_id], miembro)
+                )
             if not elegibles:
                 pendientes["sin_cupo_o_asesor"] = (
                     pendientes.get("sin_cupo_o_asesor", 0) + 1
@@ -112,13 +115,21 @@ def generar_asignaciones(*, usuario, empresa_id: str) -> dict:
                 )
             estado.asesor_responsable = miembro
             estado.save(update_fields=["asesor_responsable", "actualizado_en"])
-            cargas[miembro.pk] += 1
+            cargas[miembro.asesor_id] += 1
+            ultima = (
+                AsignacionDiaria.objects.filter(
+                    empresa_id=empresa_id,
+                    asesor=miembro,
+                    fecha_operativa=hoy,
+                ).aggregate(maxima=Max("posicion_inicial"))["maxima"]
+                or 0
+            )
             AsignacionDiaria.objects.create(
                 empresa_id=empresa_id,
                 lead_consolidado_id=lead,
                 asesor=miembro,
                 fecha_operativa=hoy,
-                posicion_inicial=cargas[miembro.pk],
+                posicion_inicial=ultima + 1,
                 motivo="Seguimiento o prioridad vigente, según capacidad.",
             )
             creadas += 1

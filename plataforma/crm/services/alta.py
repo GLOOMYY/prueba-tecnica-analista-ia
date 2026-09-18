@@ -21,6 +21,7 @@ from crm.models import (
 )
 from crm.selectores import estados_visibles
 from crm.services.gestion import ConflictoIdempotencia
+from crm.services.vigencia import publicar_prioridad
 from dominio.alta import EntradaAlta, preparar_alta
 from dominio.identidad import nombres_compatibles
 from dominio.prioridad import clasificar_cola
@@ -162,7 +163,16 @@ def _insertar(tabla: str, fila: dict) -> None:
         )
 
 
-def _persistir(miembro, preparada, datos, originales, candidatos) -> dict:
+def _persistir(
+    miembro,
+    preparada,
+    datos,
+    originales,
+    candidatos,
+    *,
+    autor=None,
+    origen="manual",
+) -> dict:
     """Persiste historia y estado operativo sin llamadas externas."""
     ahora = timezone.localtime()
     empresa = miembro.empresa_id
@@ -172,6 +182,7 @@ def _persistir(miembro, preparada, datos, originales, candidatos) -> dict:
         else "WEB-" + uuid4().hex
     )
     consulta, ejecucion, prioridad = ["WEB-" + uuid4().hex for _ in range(3)]
+    origen_captura = origen
     origen = json.dumps(originales, ensure_ascii=False)
     if not candidatos:
         _insertar(
@@ -221,11 +232,13 @@ def _persistir(miembro, preparada, datos, originales, candidatos) -> dict:
     )
     if not nuevo:
         estado.revision_entrada += 1
+        estado.save(update_fields=["revision_entrada", "actualizado_en"])
     captura = CapturaEstructurada.objects.create(
         empresa_id=empresa,
         lead_consolidado_id=lead,
         lead_id_origen=consulta,
-        autor=miembro.usuario,
+        autor=autor or miembro.usuario,
+        origen=origen_captura,
         declaracion=originales,
         incidencias=list(preparada.incidencias),
         revision_entrada=estado.revision_entrada,
@@ -234,6 +247,7 @@ def _persistir(miembro, preparada, datos, originales, candidatos) -> dict:
         "ejecuciones",
         {
             "ejecucion_id": ejecucion,
+            "empresa_id": empresa,
             "etapa": "prioridad_manual",
             "version_codigo": "captura_manual_v1",
             "huella_entrada": str(captura.pk),
@@ -269,8 +283,15 @@ def _persistir(miembro, preparada, datos, originales, candidatos) -> dict:
             "datos_originales": origen,
         },
     )
-    estado.priorizacion_vigente_id = prioridad
-    estado.save()
+    publicada = publicar_prioridad(
+        empresa_id=empresa,
+        lead_id=lead,
+        revision_entrada=estado.revision_entrada,
+        priorizacion_id=prioridad,
+        origen="captura_manual",
+    )
+    if not publicada:
+        raise RuntimeError("La captura cambió antes de publicar su prioridad.")
     EventoAuditoria.objects.create(
         empresa_id=empresa,
         actor=miembro.usuario,

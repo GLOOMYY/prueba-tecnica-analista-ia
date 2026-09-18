@@ -14,8 +14,12 @@ from rest_framework.test import APIClient
 
 from crm.models import AsignacionDiaria, CapturaEstructurada, CapturaRevision
 from crm.services.asignacion import generar_asignaciones
+from crm.services.revisiones import resolver_revision
 
 TABLAS = {
+    "prioridades_publicadas": """empresa_id TEXT, lead_consolidado_id TEXT,
+        priorizacion_id TEXT, revision_entrada INTEGER, origen TEXT,
+        conflicto_lote BOOLEAN, PRIMARY KEY(empresa_id,lead_consolidado_id)""",
     "puntos_venta": "punto_venta_id TEXT PRIMARY KEY, empresa_id TEXT",
     "modelos_moto": "sku TEXT PRIMARY KEY",
     "leads": """lead_consolidado_id TEXT PRIMARY KEY, empresa_id TEXT,
@@ -31,7 +35,8 @@ TABLAS = {
         modelo_sku TEXT, fecha_registro TEXT, fecha_registro_hora TEXT,
         fecha_registro_precision TEXT, calidad TEXT, datos_originales TEXT,
         origen_registro TEXT""",
-    "ejecuciones": """ejecucion_id TEXT PRIMARY KEY, etapa TEXT,
+    "ejecuciones": """ejecucion_id TEXT PRIMARY KEY,
+        empresa_id TEXT, etapa TEXT,
         version_codigo TEXT, huella_entrada TEXT, importada BOOLEAN,
         inicio TEXT, fin TEXT, estado TEXT, configuracion TEXT,
         conteos TEXT, errores TEXT""",
@@ -136,6 +141,62 @@ class AltaSqlTest(TestCase):
             cursor.execute("SELECT count(*) FROM leads")
             self.assertEqual(cursor.fetchone()[0], 0)
         self.assertFalse(CapturaEstructurada.objects.exists())
+
+    def test_revision_crea_cliente_distinto_con_score_y_reintento(self):
+        """La decisión explícita conserva ambos clientes del teléfono común."""
+        primera = self.enviar()
+        self.datos["nombre_cliente"] = "Pedro Gomez"
+        respuesta = self.enviar("ambiguo")
+        miembro = MembresiaEmpresa.objects.get(
+            usuario=self.usuario, empresa_id="A"
+        )
+        miembro.rol = "supervisor"
+        miembro.save()
+        argumentos = {
+            "usuario": self.usuario,
+            "empresa_id": "A",
+            "revision_id": respuesta.data["revision_id"],
+            "accion": "crear_distinto",
+            "nota": "Teléfono compartido.",
+        }
+        resolucion, repetida = resolver_revision(**argumentos)
+        self.assertFalse(repetida)
+        self.assertNotEqual(
+            primera.data["lead_consolidado_id"],
+            resolucion["lead_consolidado_id"],
+        )
+        self.assertTrue(resolver_revision(**argumentos)[1])
+        with connection.cursor() as cursor:
+            for tabla in ("leads", "consultas", "priorizaciones"):
+                cursor.execute(f"SELECT count(*) FROM {tabla}")
+                self.assertEqual(cursor.fetchone()[0], 2)
+
+    def test_pantalla_revision_restringida_y_resolucion(self):
+        """Solo el supervisor puede ver la captura y guardar su decisión."""
+        self.enviar()
+        self.datos["nombre_cliente"] = "Pedro Gomez"
+        respuesta = self.enviar("ambiguo")
+        ruta = f"/revisiones/{respuesta.data['revision_id']}/"
+        self.client.force_login(self.usuario)
+        sesion = self.client.session
+        sesion["empresa_id"] = "A"
+        sesion.save()
+        self.assertEqual(self.client.get(ruta).status_code, 403)
+        miembro = MembresiaEmpresa.objects.get(
+            usuario=self.usuario, empresa_id="A"
+        )
+        miembro.rol = "supervisor"
+        miembro.save()
+        self.assertContains(self.client.get("/revisiones/"), "Pedro Gomez")
+        self.assertContains(self.client.get(ruta), "Crear cliente distinto")
+        resultado = self.client.post(
+            ruta,
+            {
+                "accion": "rechazar",
+                "nota": "Contacto no verificable.",
+            },
+        )
+        self.assertRedirects(resultado, "/revisiones/")
 
     def test_asignacion_capacidad_y_repeticion(self):
         """Capacidad uno deja el segundo lead pendiente aunque se repita."""

@@ -38,11 +38,14 @@ def transaccion_empresa(empresa_id: str) -> Iterator[None]:
                     "SELECT set_config('app.empresa_id', %s, true)",
                     [empresa_id],
                 )
+        completado = False
         try:
             yield
+            completado = True
         finally:
             if (
                 connection.vendor == "postgresql"
+                and completado
                 and not connection.needs_rollback
             ):
                 with connection.cursor() as cursor:
