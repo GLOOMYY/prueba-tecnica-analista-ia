@@ -1,5 +1,28 @@
 # Despliegue y operación
 
+## Diagnóstico: Render no encuentra Dockerfile
+
+El log compartido corresponde al commit `076dbb7`. Se verificó en Git que ese
+commit contiene `Dockerfile` en la raíz. El fallo ocurre antes de instalar
+dependencias o iniciar Django. La causa probable es la ruta configurada en el
+servicio; todavía no se inspeccionaron sus ajustes en Render.
+
+En Settings → Build & Deploy comprobar:
+
+- Root Directory: vacío, para utilizar la raíz del repositorio.
+- Dockerfile Path: `./Dockerfile`.
+- Docker Build Context Directory: `.` si aparece ese campo.
+- Branch: `main`; Runtime/Language: Docker.
+- Docker Command: vacío para usar el `CMD` del archivo.
+
+La raíz no debe ser `plataforma`: el Dockerfile también copia `dominio`,
+`deploy` y los requirements desde la raíz. Guardar y repetir el despliegue.
+Un servicio creado manualmente no debe asumirse sincronizado con `render.yaml`.
+
+Referencia: [rutas relativas a Root Directory en Render](https://render.com/docs/monorepo-support).
+Este diagnóstico no demuestra que la compilación o la aplicación ya funcionen;
+primero debe superarse la localización del Dockerfile.
+
 ## Procesos
 
 | Proceso | Comando | Propósito |
@@ -30,10 +53,11 @@ del cargador como credencial web.
 5. Verificar autenticación, aislamiento de empresas y una carga idempotente en
    un entorno aislado antes de apuntar al entorno de evaluación.
 
-## Render: publicación diferida
+## Render: despliegue iniciado por el usuario
 
-Render es el proveedor elegido. El usuario pospuso conectar el repositorio y
-publicar; no hay URL ni servicio creado. `render.yaml` prepara el servicio web
+Render es el proveedor elegido. El usuario conectó el repositorio e inició una
+compilación, que falló al localizar el Dockerfile según el log compartido.
+No se ha verificado una URL funcional. `render.yaml` prepara el servicio web
 Docker y los secretos se configuran fuera del repositorio. La imagen contiene
 web y dominio; todavía no empaqueta el lote ni un worker operativo.
 

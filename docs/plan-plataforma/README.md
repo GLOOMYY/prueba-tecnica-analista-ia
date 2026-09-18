@@ -40,3 +40,9 @@ discutido o aprobado estas decisiones.
 Las instrucciones posteriores del usuario prevalecen sobre este plan. Cada
 ajuste debe actualizar los contratos y las tareas afectadas; no mantener dos
 decisiones contradictorias en documentos distintos.
+# Plan de cierre vigente
+
+Para continuar los seis pendientes de integración, consultar
+[PLAN_CIERRE_01_06.md](PLAN_CIERRE_01_06.md). El despliegue se trabaja por separado
+y la entrega final queda al final. El plan maestro siguiente conserva el alcance
+completo y las referencias originales.
