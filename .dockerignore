@@ -1,0 +1,13 @@
+.env
+.env.*
+api
+.git
+.venv
+tmp
+**/__pycache__
+**/*.sqlite3
+**/*.sqlite3-*
+inicio-datos
+auto-inicio-datos/ejecuciones
+.ruff_cache
+plataforma/staticfiles

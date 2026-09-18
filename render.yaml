@@ -1,0 +1,21 @@
+# Preparación del servicio web; requiere bootstrap SQL antes de publicar.
+services:
+  - type: web
+    name: crm-motos
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz/
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECURE_SSL_REDIRECT
+        value: "True"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DATABASE_URL
+        sync: false
+      - key: DJANGO_DB_SCHEMA
+        value: crm
