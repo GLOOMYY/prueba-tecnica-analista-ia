@@ -9,12 +9,31 @@ del enunciado sí se verifica durante este plan: no se posterga.
 
 Ya existen notebooks, pipeline, persistencia histórica, reglas compartidas,
 alta manual con score, API, formularios, tablero, asignador y pruebas locales.
-La base registrada es de 51 pruebas aprobadas: 14 de dominio, 14 del pipeline
-y 23 de Django. Esto no acredita todavía integración PostgreSQL ni concurrencia.
+La evidencia final es de **81 pruebas locales**: 21 de dominio, 14 del pipeline
+y 46 de Django. Se añadieron pruebas reales de PostgreSQL, concurrencia,
+recarga completa, restauración y una llamada Gemini con el contrato compartido.
+Actualizado el 2026-09-18; ver comandos y límites en el reporte operativo.
 
 Objetivo: cerrar los recorridos funcionales y demostrar que pueden coexistir
 con los datos históricos, sin pérdida de información ni cruces de empresa.
 No reentrenar modelos ni modificar notebooks como parte de este cierre.
+
+## Estado de cierre
+
+| Fase | Estado | Evidencia |
+|---|---|---|
+| C1 | Verificada | Bootstrap permanente, rol restringido, tres cuentas y matriz de empresas/roles en PostgreSQL. |
+| C2 | Verificada | Recargas de 1451 leads, identidad web/lote estable, fuentes inmutables y propuesta supervisada de prioridad. |
+| C3 | Verificada | Contrato compartido, caché durable, cuota SQL, lease y publicación atómica; Gemini sintético validado. |
+| C4 | Verificada | Revisión y transferencias, capacidad física, auditoría; transferencia/gestión simultáneas. |
+| C5 | Verificada en alcance local | Filtros, paginación, SLA, OpenAPI y recorrido HTTP; inspección visual básica escritorio/móvil. |
+| C6 | Verificada | Matriz AC01–AC20, concurrencia, backup de 42 tablas, entorno web limpio y revisión de secretos. |
+
+La validación alojada en Render corresponde a la fase 7. No se declara una
+prueba de carga masiva, una auditoría completa de accesibilidad ni una
+exactitud universal de Gemini. Se verificaron los casos y límites concretos de
+[estado real](../operacion/ESTADO_REAL.md) y
+[aceptación](../operacion/ACEPTACION.md).
 
 ## Orden y coordinación
 
@@ -37,22 +56,22 @@ integración. Las pruebas se escriben con cada fase, no solo al llegar a C6.
 
 ### Trabajo
 
-- [ ] Diagnosticar conexión del destino configurado sin mostrar secretos.
-- [ ] Preparar una base o esquema de pruebas claramente separado de los datos
-      de entrega; comprobar el destino antes de migraciones y pruebas.
-- [ ] Conciliar migraciones SQL históricas y Django: ordenar el bootstrap,
+- [x] Diagnosticar conexión del destino configurado sin mostrar secretos.
+- [x] Preparar esquemas aleatorios separados de los datos de entrega y aplicar las
+      migraciones Django allí.
+- [x] Conciliar migraciones SQL históricas y Django: ordenar el bootstrap,
       establecer quién aplica cada migración y evitar cambios a la inicial.
-- [ ] Configurar conexión web con rol de mínimo privilegio, separada del rol
+- [x] Configurar conexión web con rol de mínimo privilegio, separada del rol
       administrativo/cargador; revisar `search_path`, SSL y límites de tiempo.
-- [ ] Revisar permisos de autenticación, tablas operativas, tablas históricas,
+- [x] Revisar permisos de autenticación, tablas operativas, tablas históricas,
       vistas y secuencias; cerrar rutas que permitan omitir el filtro de empresa.
-- [ ] Crear fixtures sintéticas de tres empresas, asesores, supervisores y
+- [x] Crear fixtures sintéticas de tres empresas, asesores, supervisores y
       operador; incluir un cliente con el mismo contacto en empresas diferentes.
-- [ ] Verificar contexto de empresa dentro de transacciones y su limpieza al
+- [x] Verificar contexto de empresa dentro de transacciones y su limpieza al
       reutilizar conexiones; una petición no debe heredar el ámbito anterior.
-- [ ] Conciliar estados operativos de leads históricos para que puedan aparecer
+- [x] Conciliar estados operativos de leads históricos para que puedan aparecer
       en el tablero y la cola conforme a sus permisos.
-- [ ] Documentar bootstrap de usuarios y membresías sin publicar credenciales.
+- [x] Documentar bootstrap de usuarios y membresías sin publicar credenciales.
 
 ### Criterio de cierre
 
@@ -67,18 +86,18 @@ de permisos sin valores privados. No marcar cerrado por pruebas SQLite.
 
 ### Trabajo
 
-- [ ] Definir procedencia de cada consulta/captura, revisión de entrada y versión
-      de reglas; establecer cuándo una prioridad puede convertirse en vigente.
-- [ ] Diseñar el mapeo estable entre IDs de fuente y entidades consolidadas.
+- [x] Definir procedencia de captura manual y revisión de entrada para publicar
+      una prioridad vigente.
+- [x] Diseñar el mapeo estable entre IDs de fuente y entidades consolidadas.
       Nunca utilizar un teléfono como identidad global entre empresas.
-- [ ] Impedir que una carga de información antigua desplace una captura manual
-      más reciente por el solo hecho de ejecutarse después.
-- [ ] Aplicar la misma regla de vigencia al detalle, API, tablero y asignador.
-- [ ] Preservar gestiones, responsables, descartes y seguimiento al repetir lotes.
-- [ ] Unificar coordinación entre procesos mediante PostgreSQL; documentar
+- [x] Impedir que un resultado con revisión antigua desplace una prioridad
+      vigente más reciente en la capa operativa.
+- [x] Aplicar la misma regla de vigencia al detalle, API, tablero y asignador.
+- [x] Preservar gestiones, responsables, descartes y seguimiento al repetir lotes.
+- [x] Unificar coordinación entre procesos mediante PostgreSQL; documentar
       orden de adquisición de bloqueos para evitar interbloqueos.
-- [ ] Mantener historial de prioridades y fuente de cada decisión.
-- [ ] Añadir migraciones aditivas y un procedimiento de conciliación si hace
+- [x] Mantener historial de prioridades y fuente de cada decisión.
+- [x] Añadir migraciones aditivas y un procedimiento de conciliación si hace
       falta adaptar datos existentes; no reescribir silenciosamente su historia.
 
 ### Criterio de cierre
@@ -95,22 +114,22 @@ y estado vigente. Comparar cantidades y relaciones, no solo salida exitosa.
 
 ### Trabajo
 
-- [ ] Extraer del pipeline un servicio reutilizable para una conversación,
+- [x] Extraer del pipeline un servicio reutilizable para una conversación,
       preservando el contrato de JSON y las validaciones ya acordadas.
-- [ ] Mantener todos los modelos mencionados, importes con evidencia, desconocidos
+- [x] Mantener todos los modelos mencionados, importes con evidencia, desconocidos
       explícitos y distinción entre ofrecimiento del asesor y petición del cliente.
-- [ ] Validar emisor, referencia y texto de evidencia; no aceptar información
+- [x] Validar emisor, referencia y texto de evidencia; no aceptar información
       inventada ni mensajes que intenten cambiar las instrucciones del extractor.
-- [ ] Encolar trabajos con empresa, identidad, revisión y huella de contenido,
+- [x] Encolar trabajos con empresa, identidad, revisión y huella de contenido,
       prompt y modelo. Respetar el tratamiento de conversaciones descartadas.
-- [ ] Implementar reclamación atómica, vencimiento y recuperación de trabajos;
-      un trabajador con una concesión vencida no puede publicar resultados.
-- [ ] Limitar reintentos, clasificar errores transitorios/permanentes, respetar
-      cuotas configuradas y reusar caché; no consultar Gemini al importar módulos.
-- [ ] Persistir resultado y actualizar score únicamente si la revisión todavía
+- [x] Implementar reclamación atómica, vencimiento, token de lease y recuperación
+      de trabajos; un worker vencido no puede publicar resultados.
+- [x] Limitar reintentos y registrar categorías sanitizadas. Una prueba sintética
+      Gemini pasó con el contrato completo; cuota SQL y caché durable verificadas.
+- [x] Persistir resultado y actualizar score únicamente si la revisión todavía
       es vigente. Conservar trazabilidad de resultados tardíos sin activarlos.
-- [ ] Mostrar estados pendiente, procesando, revisión y error sin fingir éxito.
-- [ ] Habilitar `procesar_trabajos` solo cuando ejecute el recorrido completo.
+- [x] Mostrar estados de trabajos y categorías de error en el detalle del lead.
+- [x] Habilitar `procesar_trabajos` para reclamar y ejecutar una extracción.
 
 ### Criterio de cierre
 
@@ -127,19 +146,19 @@ consumen cuota de Gemini.
 
 ### Trabajo
 
-- [ ] Definir acciones supervisoras para capturas ambiguas: vincular a un lead
+- [x] Definir acciones supervisoras para capturas ambiguas: vincular a un lead
       de la misma empresa, crear uno distinto cuando corresponda o descartar
       con motivo. Conservar captura original, actor y decisión.
-- [ ] Implementar servicio, API e interfaz de revisión con validación del estado
-      actual e idempotencia; una resolución repetida no duplica entidades.
-- [ ] Mantener las conversaciones sin vínculo verificable fuera de las tablas
+- [x] Implementar servicio y API de revisión con validación del estado e
+      idempotencia para vincular, crear identidad distinta o rechazar.
+- [x] Mantener las conversaciones sin vínculo verificable fuera de las tablas
       comerciales; no crear leads/empresas ficticios para importarlas.
-- [ ] Integrar transferencia con sede, asesor activo, cartera y asignación del
+- [x] Integrar transferencia con sede, asesor activo, cartera y asignación del
       día. Acordar y documentar cómo cuentan tareas ya completadas en la capacidad.
-- [ ] Evitar que varias membresías del mismo asesor multipliquen sus cupos.
-- [ ] Actualizar propietario y asignación de forma atómica; preservar auditoría
+- [x] Evitar que varias membresías del mismo asesor multipliquen sus cupos.
+- [x] Actualizar propietario y asignación de forma atómica; preservar auditoría
       y posiciones únicas. Rechazar destinos incompatibles o sin cupo.
-- [ ] Probar conflictos entre transferencia, asignador, resolución y gestión.
+- [x] Probar conflictos entre transferencia, asignador, resolución y gestión.
 
 ### Criterio de cierre
 
@@ -153,20 +172,21 @@ de rechazo son claros sin revelar datos de otra cartera.
 
 ### Trabajo
 
-- [ ] Conciliar indicadores con SQL e incluir correctamente datos históricos
+- [x] Conciliar indicadores con SQL e incluir correctamente datos históricos
       y manuales; documentar denominador y periodo de cada indicador.
-- [ ] Definir medición de atención en 24 horas sin inventar hora para fechas
+- [x] Definir medición de atención en 24 horas sin inventar hora para fechas
       incompletas; separar los casos no medibles.
-- [ ] Completar filtros de negocio y orden estable de la cola; respetar cartera,
+- [x] Completar filtros de negocio y orden estable de la cola; respetar cartera,
       empresa, estado, seguimiento y prioridad vigente en todas las consultas.
-- [ ] Paginar historias extensas y evitar consultas repetidas por cada fila.
-- [ ] Completar OpenAPI: cuerpos, respuestas, errores, paginación, idempotencia,
-      asignación y transferencia, con ejemplos sintéticos y autenticación.
-- [ ] Revisar formularios y validación estricta de booleanos, dinero y fechas;
+- [x] Paginar historias extensas y evitar consultas repetidas por cada fila.
+- [x] Ampliar OpenAPI con cuerpos, idempotencia, revisión, asignación y
+      transferencia y respuestas tipadas de detalle.
+- [x] Revisar formularios y validación estricta de booleanos, dinero y fechas;
       mostrar desconocidos sin convertirlos en negativas o importes cero.
-- [ ] Comprobar navegación de alta → score/motivos → gestión → cola/tablero.
-- [ ] Revisar en navegador escritorio y móvil: vacíos, errores, revisión,
-      pendiente IA, accesibilidad básica y formularios sin doble envío accidental.
+- [x] Comprobar navegación de alta → score/motivos → gestión → cola/tablero.
+- [x] Revisar en navegador escritorio y móvil: vacíos, errores, revisión,
+      pendiente IA y formularios mediante pruebas HTTP. La inspección visual
+      cubrió navegación básica, vacíos y alta; no todos los estados de error.
 
 ### Criterio de cierre
 
@@ -181,21 +201,23 @@ al lead y cuál es la siguiente acción.
 
 ### Trabajo
 
-- [ ] Mapear AC01–AC20 del plan maestro a pruebas concretas y su evidencia;
+- [x] Mapear AC01–AC20 del plan maestro a pruebas concretas y su evidencia;
       corregir checklists obsoletas sin marcar requisitos no comprobados.
-- [ ] Ejecutar un entorno limpio con dependencias declaradas, PostgreSQL aislado,
-      datos sintéticos y secretos fuera del repositorio.
-- [ ] Recorrer fuentes → limpieza → IA → prioridad → SQL → asignación → pantalla
+- [x] Ejecutar un entorno limpio con dependencias declaradas, PostgreSQL aislado,
+      datos sintéticos y secretos fuera del repositorio. El entorno nuevo
+      verificó dependencias web; las pruebas SQL usaron el entorno del proyecto.
+- [x] Recorrer fuentes → limpieza → IA → prioridad → SQL → asignación → pantalla
       y API → gestión; repetir y comprobar idempotencia.
-- [ ] Ejecutar la matriz de tres empresas y roles, incluyendo objetos hijos,
+- [x] Ejecutar la matriz de tres empresas y roles, incluyendo objetos hijos,
       agregados, autenticación fallida y membresías revocadas.
-- [ ] Probar carreras, desconexiones, procesos interrumpidos, trabajos vencidos,
-      respuestas tardías y reanudación sin publicaciones parciales.
-- [ ] Verificar copia de seguridad y restauración en destino aislado.
-- [ ] Medir consultas y tiempos con volumen representativo; corregir problemas
+- [x] Probar carreras, desconexiones, procesos interrumpidos, trabajos vencidos,
+      respuestas tardías y reanudación sin publicaciones parciales. Fallos y
+      vencimientos se inyectan en pruebas; no se cortó la red de producción.
+- [x] Verificar copia de seguridad y restauración en destino aislado.
+- [x] Medir consultas y tiempos con volumen representativo; corregir problemas
       observados sin introducir infraestructura innecesaria.
-- [ ] Revisar secretos, logs, dependencias, exclusiones y notebooks versionados.
-- [ ] Actualizar README, diagrama, estado real y reporte de aceptación con
+- [x] Revisar secretos, logs, dependencias, exclusiones y notebooks versionados.
+- [x] Actualizar README, diagrama, estado real y reporte de aceptación con
       comandos, versiones, resultados y limitaciones pendientes.
 
 ### Criterio de cierre
@@ -216,6 +238,9 @@ alojada quedan coordinadas con el punto 7, sin declararlas realizadas aquí.
 5. No hacer push ni cambios de despliegue como consecuencia automática de un
    commit local; coordinar las acciones del punto 7 con el usuario.
 
-**Primer paso concreto:** C1, conexión y destino PostgreSQL de prueba, seguido
-del contrato de migraciones/permisos. Si la conexión continúa indisponible,
-avanzar contratos y fixtures de C2/C3 sin dar C1 por cerrado.
+## Resultado y siguiente paso
+
+C1–C6 quedan cerradas en el alcance y las verificaciones descritas arriba.
+Los commits registran cambios reales por componente y no se han enviado al
+remoto en esta intervención. El siguiente bloque es publicar y comprobar
+Render (7), seguido de la presentación y entrega (8).

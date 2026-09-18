@@ -29,7 +29,7 @@ primero debe superarse la localización del Dockerfile.
 |---|---|---|
 | Web | `sh deploy/start-web.sh` | Comprueba configuración, recolecta estáticos e inicia Gunicorn. |
 | Lote | `python run.py` | Ingesta completa programada. |
-| Worker | `python plataforma/manage.py procesar_trabajos --tipo extraer_ia` | Deshabilitado: termina con error sin reclamar trabajos hasta integrar Gemini individual. |
+| Worker | `python plataforma/manage.py procesar_trabajos --tipo extraer_ia --empresa EMPRESA` | Procesa una tarea durable de la empresa; respeta lease y reintentos. |
 
 ## Variables
 
@@ -47,8 +47,12 @@ del cargador como credencial web.
    El arranque se detiene ante errores. Las advertencias siguen visibles:
    W005/W021 quedan pendientes hasta decidir HSTS para subdominios y precarga
    del dominio definitivo; no activar esas políticas sin revisar su alcance.
-3. Aplicar las migraciones Django y `002_vigencia_por_lead.sql` usando el rol
-   administrativo, en una ventana controlada.
+3. Con el histórico cargado, ejecutar localmente o en el entorno administrativo
+   `python 06_inicializar_plataforma.py --aplicar`. Aplica SQL 001–007 y Django
+   0001–0004, crea el rol web restringido, tres cuentas y sincroniza el histórico.
+   Este bootstrap ya se verificó en Supabase. Publicar en el gestor de secretos
+   únicamente la conexión web resultante; no enviar al servicio la administrativa.
+   No ejecutar migraciones con el rol restringido. Ver `USUARIOS_INICIALES.md`.
 4. Configurar `/healthz/` como liveness y `/readyz/` como readiness.
 5. Verificar autenticación, aislamiento de empresas y una carga idempotente en
    un entorno aislado antes de apuntar al entorno de evaluación.
@@ -59,11 +63,12 @@ Render es el proveedor elegido. El usuario conectó el repositorio e inició una
 compilación, que falló al localizar el Dockerfile según el log compartido.
 No se ha verificado una URL funcional. `render.yaml` prepara el servicio web
 Docker y los secretos se configuran fuera del repositorio. La imagen contiene
-web y dominio; todavía no empaqueta el lote ni un worker operativo.
+web y dominio, incluido el comando del worker; no empaqueta el lote. Las dependencias de Gemini están incluidas en `requirements-web.txt`; el worker
+requiere su secreto y acceso a la cuota compartida en PostgreSQL.
 
-No se construyó la imagen: Docker no tenía un daemon disponible. Tampoco se
-verificó PostgreSQL remoto: el DNS del host configurado no resolvió. Antes de
-publicar deben cerrarse los pendientes de [ESTADO_REAL.md](ESTADO_REAL.md).
+No se construyó la imagen: Docker no tenía un daemon disponible. PostgreSQL remoto
+se verificó con bootstrap permanente y esquemas de prueba aislados. Ver
+[ESTADO_REAL.md](ESTADO_REAL.md) para evidencia y límites del cierre C1–C6.
 
 El lote alojado necesitará fuentes y caché durables. No usar el filesystem del
 contenedor web como almacenamiento final. El horario alojado se configurará

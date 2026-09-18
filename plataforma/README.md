@@ -31,15 +31,16 @@ Desde la raíz del repositorio:
 .\.venv\Scripts\python.exe plataforma/manage.py check
 ```
 
-SQLite permanece disponible para desarrollo y pruebas. PostgreSQL web se activa
-solo con `DJANGO_DATABASE_URL`, separada de la credencial administrativa de carga.
-Las migraciones locales y RLS están preparadas; su aplicación remota aún debe
-verificarse con roles reales.
+La plataforma está configurada con PostgreSQL de Supabase mediante
+`DJANGO_DATABASE_URL`, separada de la credencial administrativa de carga.
+El inicializador de la raíz aplica SQL y Django, configura permisos y crea
+las tres cuentas iniciales: `python 06_inicializar_plataforma.py --aplicar`.
+Requiere el histórico cargado; ver el README de la raíz.
 
-Hay API, tablero básico, cola propia y gestión comercial sobre tablas operativas.
-El alta transaccional, su score y los reintentos se probaron localmente con tablas
-SQL de contrato mínimo. Falta validar su integración con PostgreSQL y los roles
-reales; SQLite no demuestra RLS ni concurrencia.
+Se comprobaron RLS, transacciones, recargas y sesiones concurrentes en PostgreSQL.
+SQLite se reserva para pruebas unitarias y fixtures locales; no acredita esas
+propiedades. Hay API, tablero, cola, alta con score, gestión y revisión
+supervisada de identidades y propuestas de prioridad del lote.
 Consultar [estado y pendientes](../docs/operacion/ESTADO_REAL.md) y
 [guía de uso](../docs/operacion/GUIA_USO.md).
 Consultar [`docs/operacion/DESPLIEGUE.md`](../docs/operacion/DESPLIEGUE.md) para

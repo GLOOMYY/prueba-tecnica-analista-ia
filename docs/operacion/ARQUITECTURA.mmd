@@ -1,12 +1,24 @@
 flowchart LR
-    FU[Fuentes originales] --> LOTE[run.py: ingesta, normalización, IA y reglas]
-    LOTE --> SQL[(Supabase PostgreSQL)]
-    UI[Django HTML] --> SERV[Servicios de alta, gestión y asignación]
+    FU[Fuentes privadas] --> LOTE[run.py: etapas 1 a 5]
+    LOTE --> ID[Conciliación por empresa y fuentes]
+    ID --> SQL[(Supabase PostgreSQL)]
+    UI[Django HTML] --> SERV[Alta, gestión, revisión y asignación]
     API[DRF autenticada] --> SERV
-    SERV --> DOM[Dominio compartido]
-    SERV --> SQL
     AUTH[Usuario y membresía] --> SERV
-    SQL --> COLA[Trabajos durables]
-    COLA -. integración pendiente .-> IA[Procesador Gemini individual]
-    IA -. publicación por revisión pendiente .-> SQL
-    RENDER[Render: publicación diferida] -.-> UI
+    SERV --> DOM[Reglas de prioridad compartidas]
+    SERV --> SQL
+    SQL --> COLA[Trabajos con revisión y lease]
+    COLA --> IA[Worker individual]
+    LOTE --> CONTRATO[Contrato IA y evidencias compartidos]
+    IA --> CONTRATO
+    CONTRATO --> CUOTA[Reserva global de cuota SQL]
+    CUOTA --> GEMINI[Gemini]
+    GEMINI --> CACHE[Respuesta durable y validación]
+    CACHE --> PUB[Publicación atómica si revisión vigente]
+    PUB --> SQL
+    ID --> PROP[Prioridad distinta: propuesta al supervisor]
+    PROP --> SERV
+    SQL --> RLS[RLS por empresa y permisos de cartera]
+    RLS --> UI
+    RLS --> API
+    RENDER[Render: verificación alojada pendiente] -.-> UI

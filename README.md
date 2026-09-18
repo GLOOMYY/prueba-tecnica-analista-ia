@@ -58,9 +58,8 @@ programador de tareas o una plataforma de despliegue.
 Los datos son sintéticos. La prioridad operativa sigue reglas explicables y el
 modelo tabular sigue siendo experimental. La plataforma incluye autenticación,
 autorización por empresa/cartera, tablero, cola diaria, API y alta con score.
-Las pruebas locales no sustituyen la integración pendiente con PostgreSQL.
-Render es el proveedor elegido; la publicación y conexión del repositorio
-quedaron pospuestas por decisión del usuario.
+La integración y el aislamiento se comprobaron en PostgreSQL real.
+Render es el proveedor elegido; su despliegue aún debe validarse.
 
 ## Plataforma y comprobaciones locales
 
@@ -68,18 +67,18 @@ Desde la raíz, después de crear el entorno:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-web.txt -r requirements-dev.txt
-.\.venv\Scripts\python.exe plataforma/manage.py migrate
-.\.venv\Scripts\python.exe plataforma/manage.py createsuperuser
+.\.venv\Scripts\python.exe 06_inicializar_plataforma.py --aplicar
 .\.venv\Scripts\python.exe plataforma/manage.py runserver
 ```
 
-Completar `DJANGO_SECRET_KEY` con un secreto aleatorio privado, usar
-`DJANGO_ENV=development` y `DJANGO_DEBUG=True` solo localmente. Si no se configura
-`DJANGO_DATABASE_URL`, se usa SQLite para desarrollo. Las migraciones Django
-no crean las tablas históricas del pipeline: el alta y el catálogo requieren
-la integración SQL descrita en la [guía de uso](docs/operacion/GUIA_USO.md).
-El administrador debe crear usuarios y sus membresías de empresa en `/admin/`;
-un superusuario no recibe una cartera comercial por sí solo.
+Completar `DJANGO_SECRET_KEY` con un secreto aleatorio privado y usar
+`DJANGO_ENV=development` solo localmente. **La plataforma usa PostgreSQL de
+Supabase.** Después de cargar el histórico con `run.py`, el inicializador aplica
+SQL y Django, configura un rol web restringido, sincroniza el histórico y crea
+los tres usuarios iniciales. No ejecutarlo con una base ajena al proyecto.
+Las credenciales quedan en `local-private/usuarios.md`, excluido de Git;
+ver [usuarios iniciales](docs/operacion/USUARIOS_INICIALES.md).
+Repetir la inicialización no cambia contraseñas ni duplica cuentas.
 
 En Linux/macOS, usar `.venv/bin/python` y `cp .env.example .env` en lugar de
 las rutas y el comando equivalentes de PowerShell.
@@ -87,9 +86,8 @@ las rutas y el comando equivalentes de PowerShell.
 Pruebas con datos sintéticos, sin consumir Gemini ni cargar Supabase:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests
-.\.venv\Scripts\python.exe -m unittest discover -s auto-inicio-datos/tests
-.\.venv\Scripts\python.exe plataforma/manage.py test cuentas crm
+.\.venv\Scripts\python.exe tests/ejecutar_pruebas_locales.py
+.\.venv\Scripts\python.exe tests/verificar_secretos.py
 .\.venv\Scripts\python.exe -m ruff check .
 ```
 
@@ -100,7 +98,27 @@ incorpora trabajo que ya existía, separado por componentes; no reconstruye
 artificialmente fechas ni iteraciones pasadas. Los avances siguientes se
 registrarán cuando ocurran.
 
-La publicación en GitHub/GitLab y el acceso del evaluador siguen pendientes.
-Los commits locales cumplen la parte de versionado, pero no sustituyen un
-repositorio remoto accesible. Consultar la
+El repositorio ya fue conectado a Render según el log de despliegue del usuario.
+Los últimos commits siguen locales hasta hacer push; comprobar el acceso del
+evaluador antes de entregar. Consultar la
 [revisión de seguridad](docs/operacion/SEGURIDAD_REPOSITORIO.md).
+
+## Validación PostgreSQL y recuperación
+
+Las pruebas SQL usan esquemas aleatorios aislados en el destino configurado y
+eliminan únicamente sus propias fixtures. Requieren la conexión administrativa.
+No consumen Gemini. Revisar su alcance antes de ejecutarlas:
+
+```powershell
+.\.venv\Scripts\python.exe tests/verificar_integracion_postgresql.py
+.\.venv\Scripts\python.exe tests/verificar_concurrencia_postgresql.py
+.\.venv\Scripts\python.exe tests/verificar_recarga_postgresql.py --trabajo <carpeta-de-ejecucion-validada>
+.\.venv\Scripts\python.exe tests/verificar_usuarios_iniciales.py
+```
+
+La recarga requiere las salidas completas privadas del pipeline. La prueba de
+usuarios lee el documento privado y no imprime contraseñas. Las pruebas locales
+usan SQLite temporal únicamente para reglas y HTTP; las pruebas anteriores
+verifican PostgreSQL. Consultar [aceptación](docs/operacion/ACEPTACION.md),
+[recuperación](docs/operacion/RECUPERACION.md) y
+[despliegue](docs/operacion/DESPLIEGUE.md).
