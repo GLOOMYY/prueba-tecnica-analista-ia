@@ -96,6 +96,37 @@ class RecorridoTest(TestCase):
         self.assertEqual(respuesta.status_code, 400)
         self.assertFalse(GestionComercial.objects.exists())
 
+    def test_intento_y_contacto_son_eventos_distintos(self):
+        """Un intento fallido no se presenta como contacto efectivo."""
+        for numero, resultado in enumerate(("sin_respuesta", "contactado")):
+            respuesta = self.api.post(
+                "/api/v1/leads/propio/gestiones/",
+                {"resultado": resultado},
+                format="json",
+                HTTP_IDEMPOTENCY_KEY=f"actividad-{numero}",
+            )
+            self.assertEqual(respuesta.status_code, 201, respuesta.data)
+        resumen = self.api.get("/api/v1/dashboard/").data
+        self.assertEqual(resumen["intentos_hoy"], 1)
+        self.assertEqual(resumen["contactos_hoy"], 1)
+        self.assertEqual(resumen["gestionados_hoy"], 1)
+        self.assertEqual(GestionComercial.objects.count(), 2)
+
+    def test_contrato_describe_respuesta_real(self):
+        """Detalle y paginación exponen campos documentados en OpenAPI."""
+        rutas = self.api.get("/api/schema/").data["paths"]
+        for ruta, url in (
+            ("leads/{id}/", "leads/propio/"),
+            ("leads/", "leads/"),
+            ("dashboard/", "dashboard/"),
+        ):
+            esquema = rutas["/api/v1/" + ruta]["get"]["responses"]["200"][
+                "content"
+            ]["application/json"]["schema"]
+            respuesta = self.api.get("/api/v1/" + url)
+            self.assertEqual(respuesta.status_code, 200)
+            self.assertEqual(set(respuesta.data), set(esquema["properties"]))
+
     def test_seleccion_y_detalle_html(self):
         """La sesión selecciona una empresa validada y abre su detalle."""
         self.client.force_login(self.usuario)
