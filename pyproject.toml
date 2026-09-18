@@ -1,7 +1,7 @@
 [tool.ruff]
 target-version = "py311"
 line-length = 79
-include = ["run.py", "dominio/**/*.py", "plataforma/**/*.py", "auto-inicio-datos/**/*.py", "inicio-datos/docs/modelo_datos/**/*.py", "tests/**/*.py", "pyproject.toml"]
+include = ["run.py", "06_inicializar_plataforma.py", "dominio/**/*.py", "plataforma/**/*.py", "auto-inicio-datos/**/*.py", "inicio-datos/docs/modelo_datos/**/*.py", "tests/**/*.py", "pyproject.toml"]
 extend-exclude = [
     "auto-inicio-datos/ejecuciones",
     "plataforma/**/migrations",
@@ -20,6 +20,7 @@ convention = "google"
 # Texto literal de reglas, prompts y diagnósticos migrados: no cambiar contenido.
 "auto-inicio-datos/utils/normalizacion.py" = ["E501"]
 "auto-inicio-datos/utils/extraccion.py" = ["E501"]
+"dominio/contrato_extraccion.py" = ["E501"]
 "auto-inicio-datos/utils/priorizacion.py" = ["E501"]
 
 "auto-inicio-datos/tests/**/*.py" = ["D102"]

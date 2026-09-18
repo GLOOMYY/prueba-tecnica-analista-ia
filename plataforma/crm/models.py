@@ -218,6 +218,7 @@ class TrabajoProcesamiento(ModeloConTimestamps):
     ultimo_error = models.CharField(max_length=500, blank=True)
     configuracion = models.JSONField(default=dict)
     huella_entrada = models.CharField(max_length=64, blank=True)
+    resultado_proveedor = models.JSONField(null=True, blank=True)
 
     class Meta:
         """Evita ejecutar dos veces un mismo trabajo lógico."""
