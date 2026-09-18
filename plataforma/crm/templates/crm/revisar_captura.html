@@ -1,0 +1,18 @@
+{% extends "crm/base.html" %}
+{% block title %}Resolver captura{% endblock %}
+{% block content %}
+<h1>Resolver captura</h1>
+<p>{{ revision.motivo }} · Estado: {{ revision.estado }}</p>
+<section>
+  <h2>Datos declarados</h2>
+  <dl>{% for campo, valor in revision.datos_propuestos.items %}
+    <dt><strong>{{ campo }}</strong></dt><dd>{{ valor|default_if_none:"Desconocido" }}</dd>
+  {% endfor %}</dl>
+</section>
+<section>
+  <h2>Decisión del supervisor</h2>
+  <p>Vincular añade una consulta al cliente indicado de esta empresa. Crear cliente distinto conserva ambas identidades. Rechazar conserva la captura y el motivo fuera de la cartera.</p>
+  <form method="post">{% csrf_token %}{{ formulario.as_p }}<button>Guardar decisión</button></form>
+</section>
+<a href="{% url 'revisiones' %}">Volver a revisiones</a>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "crm/base.html" %}{% block content %}
+<h1>Revisar prioridades propuestas</h1>
+<p>Un lote nuevo no demuestra que la declaración del cliente sea más reciente. Compara las explicaciones y decide cuál conservar.</p>
+{% for conflicto in conflictos %}
+<section><h2>Lead {{ conflicto.lead_consolidado_id }}</h2>
+<p>Actual: {{ conflicto.score_actual }}/100. {{ conflicto.motivo_actual }}</p>
+<p>Propuesta: {{ conflicto.score_nuevo }}/100. {{ conflicto.motivo_nuevo }}</p>
+<form method="post">{% csrf_token %}
+<input type="hidden" name="lead_id" value="{{ conflicto.lead_consolidado_id }}">
+<input type="hidden" name="propuesta_id" value="{{ conflicto.propuesta_lote_id }}">
+<label>Decisión <select name="accion" required><option value="conservar">Conservar prioridad actual</option><option value="adoptar">Adoptar propuesta</option></select></label>
+<label>Motivo <textarea name="nota" maxlength="500" required></textarea></label>
+<button>Guardar decisión</button></form></section>
+{% empty %}<p>No hay propuestas pendientes de revisión.</p>{% endfor %}
+{% endblock %}

@@ -1,4 +1,18 @@
 {% extends "crm/base.html" %}{% block content %}
+{% if es_supervisor %}<p><a href="{% url 'conflictos_lote' %}">Revisar propuestas de lotes</a></p>{% endif %}
 <h1>Tu cartera · {{ empresa_id }}</h1><p>Actividad del {{ fecha_operativa|date:"Y-m-d" }} · Bogotá. Los activos corresponden al estado actual.</p>
 <div class="cards"><div class="card">Leads activos<strong>{{ leads_activos }}</strong></div><div class="card">Asignados hoy<strong>{{ asignados_hoy }}</strong></div><div class="card">Gestionados hoy<strong>{{ gestionados_hoy }}</strong></div><div class="card">Seguimientos vencidos<strong>{{ seguimientos_vencidos }}</strong></div></div>
-<section><h2>Leads visibles</h2><p>Primeros 100 registros. La API ofrece la lista paginada completa.</p><table><thead><tr><th>Lead</th><th>Estado</th></tr></thead><tbody>{% for lead in leads %}<tr><td><a href="{% url 'detalle' lead.lead_consolidado_id %}">{{ lead.lead_consolidado_id }}</a></td><td>{{ lead.get_estado_display }}</td></tr>{% empty %}<tr><td colspan="2">No hay leads disponibles en tu cartera.</td></tr>{% endfor %}</tbody></table></section>{% endblock %}
+{% if es_supervisor %}<p><a href="{% url 'revisiones' %}">Revisar capturas pendientes</a></p>{% endif %}
+{% if sla_24h.disponible %}<section><h2>Primer contacto en 24 horas</h2>
+<p>{{ sla_24h.criterio }}</p>
+<p>Cumplen: {{ sla_24h.cumplen }} · Vencidos: {{ sla_24h.vencidos }} · En plazo: {{ sla_24h.en_plazo }} · No medibles: {{ sla_24h.no_medibles }}.</p>
+<p>Cumplimiento: {{ sla_24h.porcentaje|default_if_none:"Sin casos medibles" }}{% if sla_24h.denominador %}%{% endif %}</p></section>{% endif %}
+<section><h2>Leads visibles</h2>
+<form method="get">{{ filtros.as_p }}<button>Filtrar</button> <a href="{% url 'tablero' %}">Limpiar filtros</a></form>
+<p>Los indicadores superiores corresponden a toda la cartera visible.</p>
+<table><thead><tr><th>Lead</th><th>Estado</th></tr></thead><tbody>{% for lead in leads %}<tr><td><a href="{% url 'detalle' lead.lead_consolidado_id %}">{{ lead.lead_consolidado_id }}</a></td><td>{{ lead.get_estado_display }}</td></tr>{% empty %}<tr><td colspan="2">No hay leads disponibles con estos filtros.</td></tr>{% endfor %}</tbody></table>
+<nav aria-label="Páginas de leads">
+{% if pagina.has_previous %}<a href="{% querystring page=pagina.previous_page_number %}">Anterior</a>{% endif %}
+<span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+{% if pagina.has_next %}<a href="{% querystring page=pagina.next_page_number %}">Siguiente</a>{% endif %}
+</nav></section>{% endblock %}

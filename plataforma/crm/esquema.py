@@ -4,7 +4,9 @@ from django import forms
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from crm.forms import AltaForm, GestionForm
+from crm.esquema_respuestas import RESPUESTAS_GET, RESPUESTAS_POST, REVISION
+from crm.filtros import FiltrosLeadForm
+from crm.forms import AltaForm, BooleanoDeclarado, GestionForm, RevisionForm
 
 
 def _cuerpo(formulario):
@@ -14,11 +16,15 @@ def _cuerpo(formulario):
         if nombre == "clave":
             continue
         tipo = "string"
-        if isinstance(campo, (forms.BooleanField, forms.NullBooleanField)):
+        if isinstance(campo, (forms.BooleanField, BooleanoDeclarado)):
             tipo = "boolean"
         propiedades[nombre] = {"type": tipo}
-        if isinstance(campo, forms.NullBooleanField):
+        if isinstance(campo, BooleanoDeclarado):
             propiedades[nombre]["nullable"] = True
+        if isinstance(campo, forms.DecimalField):
+            propiedades[nombre].update(type="number", minimum=0, nullable=True)
+        if isinstance(campo, forms.ChoiceField):
+            propiedades[nombre]["enum"] = [valor for valor, _ in campo.choices]
         if isinstance(campo, forms.DateTimeField):
             propiedades[nombre]["format"] = "date-time"
         if campo.required:
@@ -67,11 +73,45 @@ class EsquemaApi(APIView):
                         "schema": {"type": "string"},
                     }
                 )
+            if ruta == "leads/":
+                parametros.extend(
+                    {
+                        "in": "query",
+                        "name": nombre,
+                        "required": False,
+                        "schema": esquema,
+                    }
+                    for nombre, esquema in _cuerpo(FiltrosLeadForm)[
+                        "properties"
+                    ].items()
+                )
+            if ruta in (
+                "leads/",
+                "mis-leads/",
+                "leads/{id}/prioridades/",
+                "leads/{id}/conversaciones/",
+            ):
+                parametros.append(
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": False,
+                        "schema": {"type": "integer", "minimum": 1},
+                    }
+                )
             rutas["/api/v1/" + ruta] = {
                 "get": {
                     "parameters": parametros,
                     "responses": {
-                        "200": {"description": "Resultado autorizado"},
+                        "200": {
+                            "description": "Resultado autorizado",
+                            "content": {
+                                "application/json": {
+                                    "schema": RESPUESTAS_GET[ruta]
+                                }
+                            },
+                        },
+                        "401": {"description": "Autenticación requerida"},
                         "403": {"description": "Sin permiso"},
                         "404": {"description": "No encontrado"},
                     },
@@ -80,6 +120,7 @@ class EsquemaApi(APIView):
         for ruta, formulario in [
             ("leads/", AltaForm),
             ("leads/{id}/gestiones/", GestionForm),
+            ("revisiones/{id}/resolver/", RevisionForm),
         ]:
             parametros = [
                 {
@@ -88,13 +129,22 @@ class EsquemaApi(APIView):
                     "required": True,
                     "schema": {"type": "string"},
                 }
-                for nombre in ["X-Empresa-ID", "Idempotency-Key"]
+                for nombre in ["X-Empresa-ID"]
             ]
             if "{id}" in ruta:
                 parametros.append(
                     {
                         "in": "path",
                         "name": "id",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                )
+            if formulario in {AltaForm, GestionForm}:
+                parametros.append(
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
                         "required": True,
                         "schema": {"type": "string"},
                     }
@@ -119,6 +169,47 @@ class EsquemaApi(APIView):
                     ]
                 },
             }
+        rutas["/api/v1/asignaciones/generar/"] = {
+            "post": _post_simple({}, "Genera asignaciones dentro de cupos.")
+        }
+        rutas["/api/v1/leads/{id}/responsable/"] = {
+            "post": _post_simple(
+                {
+                    "membresia_responsable_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                    }
+                },
+                "Transfiere una cartera por supervisor autorizado.",
+                requiere_id=True,
+            )
+        }
+        rutas["/api/v1/conversaciones/{id}/extraer/"] = {
+            "post": _post_simple(
+                {},
+                "Encola una extracción individual autorizada.",
+                requiere_id=True,
+            )
+        }
+        for ruta, metodos in rutas.items():
+            if "post" not in metodos:
+                continue
+            for codigo, respuesta in metodos["post"]["responses"].items():
+                if codigo.startswith("2"):
+                    esquema = RESPUESTAS_POST[ruta.removeprefix("/api/v1/")]
+                else:
+                    esquema = {
+                        "type": "object",
+                        "properties": {
+                            "detail": {"type": "string"},
+                            "errors": {"type": "object"},
+                        },
+                    }
+                    if ruta == "/api/v1/leads/" and codigo == "409":
+                        esquema = {"oneOf": [esquema, REVISION]}
+                respuesta["content"] = {
+                    "application/json": {"schema": esquema}
+                }
         return Response(
             {
                 "openapi": "3.0.3",
@@ -142,3 +233,52 @@ class EsquemaApi(APIView):
                 },
             }
         )
+
+
+def _post_simple(
+    propiedades: dict,
+    descripcion: str,
+    *,
+    requiere_id: bool = False,
+) -> dict:
+    """Describe un POST autenticado no basado en un formulario Django."""
+    parametros = [
+        {
+            "in": "header",
+            "name": "X-Empresa-ID",
+            "required": True,
+            "schema": {"type": "string"},
+        }
+    ]
+    if requiere_id:
+        parametros.append(
+            {
+                "in": "path",
+                "name": "id",
+                "required": True,
+                "schema": {"type": "string"},
+            }
+        )
+    return {
+        "parameters": parametros,
+        "requestBody": {
+            "required": bool(propiedades),
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": propiedades,
+                        "required": list(propiedades),
+                        "additionalProperties": False,
+                    }
+                }
+            },
+        },
+        "responses": {
+            "200": {"description": descripcion},
+            "201": {"description": descripcion},
+            "400": {"description": "Entrada inválida"},
+            "403": {"description": "Sin permiso"},
+            "404": {"description": "No encontrado"},
+        },
+    }

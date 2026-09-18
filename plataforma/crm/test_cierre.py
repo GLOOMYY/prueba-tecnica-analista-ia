@@ -32,6 +32,24 @@ from crm.services.trabajos import (
 from crm.services.vigencia import publicar_prioridad
 
 
+class ValidacionFormularioTest(TestCase):
+    """Impide confirmar ventas con valores booleanos mal formados."""
+
+    def test_confirmacion_exige_booleano_explicito(self):
+        """Un texto arbitrario no equivale a confirmar una venta."""
+        from crm.forms import GestionForm
+
+        for valor in ("cualquier cosa", 1, [True]):
+            formulario = GestionForm(
+                {
+                    "resultado": "cerrado",
+                    "clave": "sintetico",
+                    "confirmar_cierre": valor,
+                }
+            )
+            self.assertFalse(formulario.is_valid())
+
+
 class VigenciaYTrabajosTest(TestCase):
     """Protege resultados tardíos de entradas y workers reemplazados."""
 

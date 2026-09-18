@@ -1,0 +1,18 @@
+{% extends "crm/base.html" %}
+{% block title %}Revisiones de identidad{% endblock %}
+{% block content %}
+<h1>Revisiones de identidad</h1>
+<p>Las capturas permanecen fuera de la cartera hasta una decisión supervisada.</p>
+{% for revision in pagina %}
+<section>
+  <h2>{{ revision.datos_propuestos.nombre_cliente|default:"Nombre no informado" }}</h2>
+  <p>{{ revision.motivo }} · {{ revision.creado_en|date:"Y-m-d H:i" }}</p>
+  <a href="{% url 'revisar_captura' revision.pk %}">Revisar captura</a>
+</section>
+{% empty %}<p>No hay capturas pendientes de revisión.</p>{% endfor %}
+<nav aria-label="Páginas de revisiones">
+  {% if pagina.has_previous %}<a href="?page={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+  <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  {% if pagina.has_next %}<a href="?page={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+</nav>
+{% endblock %}

@@ -38,6 +38,21 @@ class RecorridoTest(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.data["leads_activos"], 1)
 
+    def test_filtros_invalidos_se_rechazan(self):
+        """La API distingue un filtro incorrecto de un conjunto vacío."""
+        respuesta = self.api.get("/api/v1/leads/?estado=inventado")
+        self.assertEqual(respuesta.status_code, 400)
+
+    def test_tablero_paginado_no_revela_cartera_ajena(self):
+        """La pantalla usa los mismos permisos que los listados JSON."""
+        self.client.force_login(self.usuario)
+        sesion = self.client.session
+        sesion["empresa_id"] = "A"
+        sesion.save()
+        respuesta = self.client.get("/?estado=abierto")
+        self.assertContains(respuesta, "propio")
+        self.assertNotContains(respuesta, 'href="/leads/ajeno/"')
+
     def test_objetos_ajenos_no_se_revelan(self):
         """Un lead ajeno devuelve el mismo resultado que uno inexistente."""
         for lead in ["ajeno", "otra-empresa", "inexistente"]:

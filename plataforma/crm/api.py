@@ -9,12 +9,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from crm import historico
-from crm.forms import AltaForm, GestionForm
+from crm.filtros import FiltrosLeadForm, filtrar_estados
+from crm.forms import AltaForm, GestionForm, RevisionForm
 from crm.selectores import asignaciones_propias, estados_visibles, indicadores
 from crm.services.alta import crear_lead
 from crm.services.asignacion import generar_asignaciones
 from crm.services.cartera import transferir_responsable
+from crm.services.extraccion_ia import (
+    ErrorExtraccion,
+    encolar_extraccion_conversacion,
+)
 from crm.services.gestion import ConflictoIdempotencia, registrar_gestion
+from crm.services.revisiones import resolver_revision
 
 
 def _empresa(request) -> str:
@@ -82,18 +88,12 @@ class MisLeadsApi(APIView):
     def get(self, request):
         """Materializa resultados antes de cerrar el contexto SQL."""
         with alcance_empresa(request.user, _empresa(request)) as miembro:
-            return Response(
-                {
-                    "results": list(
-                        asignaciones_propias(miembro).values(
-                            "lead_consolidado_id",
-                            "posicion_inicial",
-                            "estado",
-                            "motivo",
-                        )
-                    )
-                }
+            paginador = PageNumberPagination()
+            filas = asignaciones_propias(miembro).values(
+                "lead_consolidado_id", "posicion_inicial", "estado", "motivo"
             )
+            pagina = paginador.paginate_queryset(filas, request)
+            return paginador.get_paginated_response(list(pagina))
 
 
 class LeadsApi(APIView):
@@ -102,10 +102,10 @@ class LeadsApi(APIView):
     def get(self, request):
         """Filtra por estado antes de paginar."""
         with alcance_empresa(request.user, _empresa(request)) as miembro:
-            filas = estados_visibles(miembro)
-            estado = request.query_params.get("estado")
-            if estado:
-                filas = filas.filter(estado=estado)
+            filtros = FiltrosLeadForm(request.query_params)
+            if not filtros.is_valid():
+                return Response({"errors": filtros.errors}, status=400)
+            filas = filtrar_estados(miembro, filtros)
             paginador = PageNumberPagination()
             pagina = paginador.paginate_queryset(filas, request)
             return paginador.get_paginated_response(
@@ -184,6 +184,16 @@ class ResponsableApi(APIView):
 
     def post(self, request, lead_id: str):
         """Valida destino dentro de la misma empresa."""
+        valor = request.data.get("membresia_responsable_id")
+        if (
+            set(request.data) != {"membresia_responsable_id"}
+            or type(valor) is not int
+            or valor < 1
+        ):
+            return Response(
+                {"detail": "Indique un identificador entero de membresía."},
+                status=400,
+            )
         with alcance_empresa(request.user, _empresa(request)) as miembro:
             get_object_or_404(
                 estados_visibles(miembro), lead_consolidado_id=lead_id
@@ -194,13 +204,56 @@ class ResponsableApi(APIView):
                 pk=request.data.get("membresia_responsable_id"),
                 activa=True,
             )
-            estado = transferir_responsable(
-                empresa_id=miembro.empresa_id,
-                lead_consolidado_id=lead_id,
-                supervisor=miembro,
-                nuevo_responsable=responsable,
-            )
+            try:
+                estado = transferir_responsable(
+                    empresa_id=miembro.empresa_id,
+                    lead_consolidado_id=lead_id,
+                    supervisor=miembro,
+                    nuevo_responsable=responsable,
+                )
+            except ValueError as error:
+                return Response({"detail": str(error)}, status=400)
             return Response({"estado": _estado(estado)})
+
+
+class RevisionApi(APIView):
+    """Permite al supervisor decidir una captura ambigua de su empresa."""
+
+    def post(self, request, revision_id: str):
+        """Resuelve o rechaza una revisión dentro del ámbito autorizado."""
+        if set(request.data) - set(RevisionForm.base_fields):
+            return Response({"detail": "Campos desconocidos."}, status=400)
+        formulario = RevisionForm(request.data)
+        if not formulario.is_valid():
+            return Response({"errors": formulario.errors}, status=400)
+        try:
+            respuesta, repetida = resolver_revision(
+                usuario=request.user,
+                empresa_id=_empresa(request),
+                revision_id=revision_id,
+                accion=formulario.cleaned_data["accion"],
+                nota=formulario.cleaned_data["nota"],
+                lead_id=formulario.cleaned_data["lead_consolidado_id"],
+            )
+        except ValueError as error:
+            return Response({"detail": str(error)}, status=400)
+        return Response(respuesta, status=200 if repetida else 201)
+
+
+class ExtraccionConversacionApi(APIView):
+    """Encola una extracción individual desde una conversación autorizada."""
+
+    def post(self, request, conversacion_id: str):
+        """No llama Gemini aquí ni procesa una conversación descartada."""
+        try:
+            respuesta, creada = encolar_extraccion_conversacion(
+                usuario=request.user,
+                empresa_id=_empresa(request),
+                conversacion_id=conversacion_id,
+            )
+        except ErrorExtraccion as error:
+            return Response({"detail": str(error)}, status=400)
+        return Response(respuesta, status=201 if creada else 200)
 
 
 class CatalogoApi(APIView):
@@ -232,6 +285,13 @@ class HistoriaApi(APIView):
 
     def get(self, request, lead_id: str):
         """Restringe descartadas a supervisores de la misma empresa."""
+        try:
+            pagina = int(request.query_params.get("page", "1"))
+            if not 1 <= pagina <= 1000000:
+                raise ValueError
+        except ValueError:
+            return Response({"detail": "Página inválida."}, status=400)
+        limites = {"limite": 25, "desplazamiento": (pagina - 1) * 25}
         with alcance_empresa(request.user, _empresa(request)) as miembro:
             get_object_or_404(
                 estados_visibles(miembro), lead_consolidado_id=lead_id
@@ -241,7 +301,24 @@ class HistoriaApi(APIView):
                     miembro.empresa_id,
                     lead_id,
                     incluir_descartadas=miembro.rol == "supervisor",
+                    **limites,
                 )
             else:
-                filas = historico.prioridades(miembro.empresa_id, lead_id)
-            return Response({"results": filas})
+                filas = historico.prioridades(
+                    miembro.empresa_id, lead_id, **limites
+                )
+            total = historico.contar_historia(
+                miembro.empresa_id,
+                lead_id,
+                self.tipo,
+                miembro.rol == "supervisor",
+            )
+            return Response(
+                {
+                    "count": total,
+                    "page": pagina,
+                    "next": pagina + 1 if pagina * 25 < total else None,
+                    "previous": pagina - 1 if pagina > 1 else None,
+                    "results": filas,
+                }
+            )

@@ -13,6 +13,13 @@ urlpatterns = [
     path("empresas/", views.elegir_empresa, name="elegir_empresa"),
     path("leads/<str:lead_id>/", views.detalle, name="detalle"),
     path("mis-leads/", views.mis_leads, name="mis_leads"),
+    path("revisiones/", views.revisiones, name="revisiones"),
+    path("conflictos-lote/", views.conflictos_lote, name="conflictos_lote"),
+    path(
+        "revisiones/<uuid:revision_id>/",
+        views.revisar_captura,
+        name="revisar_captura",
+    ),
     path("api/v1/me/", api.MeApi.as_view()),
     path("api/v1/asignaciones/generar/", api.AsignacionApi.as_view()),
     path("api/v1/catalogo/modelos/", api.CatalogoApi.as_view()),
@@ -30,5 +37,13 @@ urlpatterns = [
     path(
         "api/v1/leads/<str:lead_id>/responsable/",
         api.ResponsableApi.as_view(),
+    ),
+    path(
+        "api/v1/revisiones/<uuid:revision_id>/resolver/",
+        api.RevisionApi.as_view(),
+    ),
+    path(
+        "api/v1/conversaciones/<str:conversacion_id>/extraer/",
+        api.ExtraccionConversacionApi.as_view(),
     ),
 ]

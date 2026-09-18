@@ -11,6 +11,7 @@ from crm.models import (
     EstadoOperativoLead,
     GestionComercial,
 )
+from crm.services.metricas import sla_cartera
 
 
 def estados_visibles(membresia: MembresiaEmpresa) -> QuerySet:
@@ -61,6 +62,7 @@ def indicadores(membresia: MembresiaEmpresa) -> dict:
     return {
         "empresa_id": membresia.empresa_id,
         "fecha_operativa": hoy,
+        "sla_24h": sla_cartera(membresia.empresa_id, ids),
         "leads_activos": estados.filter(estado="abierto").count(),
         "asignados_hoy": AsignacionDiaria.objects.filter(
             empresa_id=membresia.empresa_id,

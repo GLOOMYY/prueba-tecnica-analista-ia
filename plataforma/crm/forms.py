@@ -105,6 +105,18 @@ class AltaForm(forms.Form):
             self.add_error(
                 "forma_pago", "Revise contado y crédito solicitado."
             )
+        inicial, presupuesto = (
+            datos.get("cuota_inicial"),
+            datos.get("presupuesto"),
+        )
+        if (
+            inicial is not None
+            and presupuesto is not None
+            and inicial > presupuesto
+        ):
+            self.add_error(
+                "cuota_inicial", "La inicial no puede superar el presupuesto."
+            )
         return datos
 
 
@@ -120,7 +132,9 @@ class GestionForm(forms.Form):
         label="Próxima acción (hora de Bogotá)",
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
     )
-    confirmar_cierre = forms.BooleanField(required=False)
+    confirmar_cierre = BooleanoDeclarado(
+        required=False, label="¿Confirma el cierre declarado?"
+    )
     clave = forms.CharField(max_length=255, widget=forms.HiddenInput)
 
 

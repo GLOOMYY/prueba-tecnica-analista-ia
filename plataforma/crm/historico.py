@@ -25,7 +25,13 @@ def catalogo(empresa_id: str) -> list[dict]:
     )
 
 
-def prioridades(empresa_id: str, lead_id: str) -> list[dict]:
+def prioridades(
+    empresa_id: str,
+    lead_id: str,
+    *,
+    limite=25,
+    desplazamiento=0,
+) -> list[dict]:
     """Obtiene historia de prioridades ya finalizadas del lead autorizado."""
     return _consultar(
         "SELECT p.priorizacion_id, p.score_prioridad, p.temperatura, "
@@ -34,8 +40,9 @@ def prioridades(empresa_id: str, lead_id: str) -> list[dict]:
         "ON e.ejecucion_id = p.ejecucion_id "
         "WHERE p.empresa_id = %s AND p.lead_consolidado_id = %s "
         "AND e.estado = 'completada' "
-        "ORDER BY e.registrada_en DESC LIMIT 100",
-        [empresa_id, lead_id],
+        "ORDER BY e.registrada_en DESC, p.priorizacion_id DESC "
+        "LIMIT %s OFFSET %s",
+        [empresa_id, lead_id, limite, desplazamiento],
     )
 
 
@@ -43,6 +50,9 @@ def conversaciones(
     empresa_id: str,
     lead_id: str,
     incluir_descartadas: bool = False,
+    *,
+    limite=25,
+    desplazamiento=0,
 ) -> list[dict]:
     """Lee conversaciones vinculadas, con descarte visible por permiso."""
     return _consultar(
@@ -50,9 +60,30 @@ def conversaciones(
         "motivos_descarte FROM conversaciones "
         "WHERE empresa_id = %s AND lead_consolidado_id = %s "
         "AND (NOT descartada OR %s) "
-        "ORDER BY fecha_inicio DESC, conversacion_id LIMIT 100",
-        [empresa_id, lead_id, incluir_descartadas],
+        "ORDER BY fecha_inicio DESC NULLS LAST, conversacion_id "
+        "LIMIT %s OFFSET %s",
+        [empresa_id, lead_id, incluir_descartadas, limite, desplazamiento],
     )
+
+
+def contar_historia(empresa_id, lead_id, tipo, incluir_descartadas) -> int:
+    """Cuenta el mismo conjunto autorizado que se presenta en cada página."""
+    if tipo == "conversaciones":
+        consulta = (
+            "SELECT count(*) AS total FROM conversaciones "
+            "WHERE empresa_id = %s AND lead_consolidado_id = %s "
+            "AND (NOT descartada OR %s)"
+        )
+        parametros = [empresa_id, lead_id, incluir_descartadas]
+    else:
+        consulta = (
+            "SELECT count(*) AS total FROM priorizaciones p "
+            "JOIN ejecuciones e ON e.ejecucion_id = p.ejecucion_id "
+            "WHERE p.empresa_id = %s AND p.lead_consolidado_id = %s "
+            "AND e.estado = 'completada'"
+        )
+        parametros = [empresa_id, lead_id]
+    return _consultar(consulta, parametros)[0]["total"]
 
 
 def _consultar(sentencia: str, parametros: list) -> list[dict]:

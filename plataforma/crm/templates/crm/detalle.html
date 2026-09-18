@@ -1,6 +1,10 @@
 {% extends "crm/base.html" %}{% block content %}
 <h1>Lead {{ estado.lead_consolidado_id }}</h1><p>Estado: {{ estado.get_estado_display }}</p>
-{% if captura %}<h2>{{ captura.declaracion.nombre_cliente }}</h2><p>Captura manual · {{ captura.capturada_en|date:"Y-m-d H:i" }}</p>{% endif %}
+{% if captura %}<h2>{{ captura.declaracion.nombre_cliente }}</h2><p>{% if captura.origen == "gemini" %}Extracción IA{% else %}Captura declarada{% endif %} · {{ captura.capturada_en|date:"Y-m-d H:i" }}</p>{% endif %}
+{% if trabajos %}<section><h2>Procesamiento de conversaciones</h2>
+<p>Últimos 20 trabajos. Un resultado pendiente o fallido no sustituye la prioridad publicada.</p>
+{% for trabajo in trabajos %}<article><strong>{{ trabajo.get_estado_display }}</strong> · {{ trabajo.creado_en|date:"Y-m-d H:i" }}<p>Intentos: {{ trabajo.intentos }}{% if trabajo.ultimo_error %} · Motivo: {{ trabajo.ultimo_error }}{% endif %}</p></article>{% endfor %}
+</section>{% endif %}
 {% if prioridad %}<section><h2>Prioridad: {{ prioridad.score_prioridad }}/100</h2><p>{{ prioridad.temperatura }}</p><p>{{ prioridad.explicacion }}</p><p>{{ prioridad.accion_sugerida }}</p><small>Prioridad por reglas; no es una probabilidad de compra.</small></section>{% endif %}
 {% if estado.proxima_accion_en %}<p>Próxima acción: {{ estado.proxima_accion_en|date:"Y-m-d H:i" }} (Bogotá)</p>{% endif %}
 <section><h2>Registrar gestión</h2><p>Registra lo ocurrido. Esta acción no realiza llamadas ni envía mensajes.</p><form method="post">{% csrf_token %}{{ formulario.as_p }}<button>Guardar gestión</button></form></section>
