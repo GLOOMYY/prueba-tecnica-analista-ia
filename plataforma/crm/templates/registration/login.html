@@ -1,0 +1,2 @@
+{% extends "crm/base.html" %}{% block content %}<h1>Iniciar sesión</h1>
+<section><form method="post">{% csrf_token %}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button>Ingresar</button></form></section>{% endblock %}

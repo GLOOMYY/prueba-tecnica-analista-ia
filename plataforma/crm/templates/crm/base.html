@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}CRM comercial{% endblock %}</title>
+<style>
+body{margin:0;background:#f3f5f8;color:#17283b;font:16px system-ui,sans-serif}header{background:#17334d;color:white;padding:1rem 5%;display:flex;gap:1.3rem;align-items:center;flex-wrap:wrap}header a{color:white}main{max-width:1050px;margin:2rem auto;padding:0 1rem}section,.card{background:white;padding:1.3rem;border-radius:12px;margin:1rem 0}.cards{display:flex;gap:1rem;flex-wrap:wrap}.card strong{font-size:2rem;display:block}input,select,textarea,button{font:inherit;padding:.6rem;max-width:100%;box-sizing:border-box}textarea{width:100%}button{background:#175b82;color:white;border:0;border-radius:5px;cursor:pointer}label{display:block;margin:.7rem 0}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:.7rem;border-bottom:1px solid #dce2e9}.errorlist{color:#9c2030}a{color:#155f8b}.notice{padding:1rem;background:#e5f3e8}
+</style></head><body>
+<header><strong>CRM · Atención comercial</strong>{% if user.is_authenticated %}<a href="{% url 'tablero' %}">Tablero</a><a href="{% url 'mis_leads' %}">Mis leads de hoy</a><a href="{% url 'elegir_empresa' %}">Cambiar empresa</a><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>Salir</button></form>{% endif %}</header>
+<main>{% if user.is_authenticated %}<p><a href="{% url 'alta' %}">Añadir lead</a> · <a href="/api/docs/">Documentación API</a></p>{% endif %}{% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}{% block content %}{% endblock %}</main></body></html>

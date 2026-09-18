@@ -1,0 +1,4 @@
+{% extends "crm/base.html" %}{% block content %}
+<h1>Selecciona tu empresa</h1><section><form method="post">{% csrf_token %}
+<label for="empresa">Empresa autorizada</label><select name="empresa_id" id="empresa" required>{% for item in empresas %}<option value="{{ item.empresa_id }}">{{ item.empresa_id }} · {{ item.get_rol_display }}</option>{% endfor %}</select>
+<button>Continuar</button></form></section>{% endblock %}

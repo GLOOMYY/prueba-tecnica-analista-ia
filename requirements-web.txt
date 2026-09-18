@@ -1,0 +1,7 @@
+# Versiones instaladas al crear la plataforma. Python 3.11.
+Django==5.2.17
+djangorestframework==3.18.1
+python-dotenv==1.2.3
+psycopg[binary]==3.3.5
+gunicorn==25.1.0
+whitenoise==6.12.0
